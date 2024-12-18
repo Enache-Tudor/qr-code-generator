@@ -13,10 +13,7 @@ class PngGen{
         mFileName = name;
     }
 
-    bool compressPng(const SquareImage& im){
-
-    }
-
+    bool compressPng(const SquareImage& im);
     private:
     std::string mFileName;
-}
+};

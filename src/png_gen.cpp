@@ -3,9 +3,13 @@
 
 #include <iostream>
 
-bool PngGen::compressPng(const SquareImage& im){
+bool PngGen::compressPng(const SquareImage& im)
+{
     unsigned res = lodepng_encode32_file(mFileName.c_str(), im.image.data(), im.imageSize, im.imageSize);
-    // if(0 != res){
+    if (0 != res)
+    {
+        std::cerr << "error: " << unsigned(res) << " - " << std::string(lodepng_error_text(res)) << std::endl;
+    }
 
-    // }
+    return 0 == res;
 }

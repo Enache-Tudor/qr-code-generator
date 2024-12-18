@@ -1,4 +1,5 @@
 #include "qrcode_gen.hpp"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -9,33 +10,38 @@ extern "C" {
 
 #include <iostream>
 
-namespace 
+namespace
 {
-    constexpr unsigned IM_PIX_SZ = 4;
+constexpr unsigned IM_PIX_SZ = 4;
+// Black colour, all colour components are set to 0, transparency set to 0xFF (non-transparent)
+constexpr uint32_t BLACK_COLOUR = (255ul << 24);
 
-    constexpr unsigned BLACK_COLOUR = 0xFF <<24;
-    constexpr unsigned WHITE_COLOUR = 0xFFFFFF;
+// White colour, all colour components are set to 0xFF, transparency set to 0xFF (non-transparent)
+constexpr uint32_t WHITE_COLOUR = 0xFFFFFFFF;
 
-    //border around the actual QR picture
-    constexpr uint32_t BORDER_WIDTH = 4;
-} // namespace name
+// Border around the actual QR picture
+constexpr uint32_t BORDER_WIDTH = 4;
+}
 
-QRCodeGen::QRCodeGen(unsigned version, unsigned ecc)
+QRcodeGen::QRcodeGen(unsigned version, unsigned ecc)
     : mVersion(version)
     , mEcc(ecc)
-    , mScale (0)
-{   
+    , mScale(0)
+{
 }
 
-void QRCodeGen::init(unsigned scale){
+void QRcodeGen::init(unsigned scale)
+{
     mScale = scale;
-
 }
 
-bool QRCodeGen::generate(std::string str){
-    if(!checkIfStringFits(str, mVersion, mEcc))
+bool QRcodeGen::generate(std::string str)
+{
+    if (!checkStringFits(str, mVersion, mEcc))
+    {
         return false;
-    
+    }
+
     QRCode qr;
     // Allocate memory for the boolean bitmask buffer used by the QR library
     mQrCodeData.resize(qrcode_getBufferSize(mVersion));
@@ -43,6 +49,7 @@ bool QRCodeGen::generate(std::string str){
     auto res = qrcode_initText(&qr, mQrCodeData.data(), mVersion, mEcc, str.c_str());
     if (0 != res)
     {
+       // std::cerr << "error: " << unsigned(res) << " - " << std::string(lodepng_error_text(res)) << std::endl;
         return false;
     }
 
@@ -51,8 +58,33 @@ bool QRCodeGen::generate(std::string str){
     mSquareImage.image.resize(mSquareImage.imageSize * mSquareImage.imageSize * IM_PIX_SZ);
     std::cout << "side sz:" << mSquareImage.imageSize << " size:" << mSquareImage.image.size() << "\n";
 
-    for(unsigned y = 0; y < qr.size + BORDER_WIDTH; y++)
-        for(unsigned x = 0; x < qr.size + BORDER_WIDTH; x++){
+#if 1
+    // print the QRCode symbols for debug purposes
+    for (unsigned y = 0; y < qr.size; y++)
+    {
+        std::cout << '\n';
+        for (unsigned x = 0; x < qr.size; x++)
+        {
+            char c;
+            if (qrcode_getModule(&qr, x, y))
+            {
+                c = '*';
+            }
+            else
+            {
+                c = ' ';
+            }
+            std::cout << c;
+        }
+    }
+    std::cout << '\n';
+#endif
+
+    for (unsigned y = 0; y < qr.size + BORDER_WIDTH; y++)
+    {
+        //copy to scale buffer
+        for (unsigned x = 0; x < qr.size + BORDER_WIDTH; x++)
+        {
             uint32_t colour = WHITE_COLOUR;
             if ((y >= BORDER_WIDTH/2) && y <= (qr.size + BORDER_WIDTH/2))
             {
@@ -77,13 +109,25 @@ bool QRCodeGen::generate(std::string str){
                 }
             }
         }
+    }
+    return true;
 }
 
-bool QRCodeGen::checkIfStringFits(std::string str, unsigned version, unsigned eccType){
-    if(eccType < 4)
-        if(version >=1 && version <= 40){
-            //ecc can be LOW, MEDIUM, QUARTILE, HIGH
-            const static int capacity [][4] = {
+const SquareImage& QRcodeGen::getImage()
+{
+    return mSquareImage;
+}
+
+bool QRcodeGen::checkStringFits(std::string str, unsigned version, unsigned eccType)
+{
+    // For more details, 
+    // see https://github.com/ricmoo/QRCode#data-capacities
+    if (eccType < 4)
+    {
+        if (version >= 1 && version <= 40)
+        {
+            // ECC: LOW, MEDIUM,  QUARTILE, HIGH
+            const static int capacity[][4] = {
                 {17,14,11,7,},// Version = 1
                 {32,26,20,14,},// Version = 2
                 {53,42,32,24,},// Version = 3
@@ -126,11 +170,11 @@ bool QRCodeGen::checkIfStringFits(std::string str, unsigned version, unsigned ec
                 {2953,2331,1663,1273,},// Version = 40
             };
             unsigned idx = version - 1;
-            if (idx >= 0 && idx < sizeof(capacity)/ sizeof(capacity[0]))
+            if(idx >= 0 && idx < sizeof(capacity)/sizeof(capacity[0]))
+            {
                 return (str.size() <= capacity[idx][eccType]);
+            }
         }
-            return false;
-}
-const SquareImage& QRCodeGen::getImage(){
-    return mSquareImage;
+    }
+    return false;
 }

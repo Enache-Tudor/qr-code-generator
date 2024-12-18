@@ -4,10 +4,13 @@ CXXSOURCE = main.cpp \
 	app/app_init.cpp \
 	src/*.cpp \
 	QRCode/src/qrcode.c \
-	lodepng/lodepng.cpp 
-INT =-I -IQRCode/src -Ilodepng -Isrc -app
+	lodepng/lodepng.cpp
+
+INC=-I. -IQRCode/src -Ilodepng -Isrc -Iapp
 
 TARGET = qrcode
+
+COMPILER = g++
 
 $(TARGET): $(CXXSOURCE)
 	$(COMPILER) $(CFLAGS) $(INC) -o $(TARGET) $(CXXSOURCE) $(LDFLAGS)
